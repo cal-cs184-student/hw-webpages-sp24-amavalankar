@@ -1,7 +1,266 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Homework 1 index.html here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184/284A Rasterizer</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184/284A: Computer Graphics and Imaging, Spring 2024</h1>
+<h1 align="middle">Homework 1: Rasterizer</h1>
+<h2 align="middle">Aditya Mavalankar, Jackson Gold</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>Give a high-level overview of what you implemented in this homework Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.</p>
+
+<h2 align="middle">Section I: Rasterization</h2>
+
+<h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
+
+<ul>
+  <li><p>Given the three points within a triangle, rasterization simply means that we must iterate over every point within a bounding box that encapsulates the triangle. For each point, we must check whether or not it lies within the triangle. While there are many ways to go about implementing this, we elected to use <a href="https://en.wikipedia.org/wiki/Barycentric_coordinate_system">Barycentric coordinates</a> for its slight performance boost over the three-line test and its relative simplicity to code. If <code>(x_p, y_p)</code> ends up residing within the triangle, we fill in the pixel using the provided helpers.</p>
+  </li>
+  <li><p>The algorithm fits tightly within the specified bound, as we set the edges of the boundary box surrounding the triangle to be equivalent to the top-left and top-right corners based on the minimum and maximum <code>(x, y)</code> values among the three vertices.</p>
+  </li>
+  <li><p>If we zoom into the corner of a triangle, we see lots of aliasing (specifically jaggies) thanks to a lack of supersampling, as seen in the attached figure.</p>
+  </li>
+</ul>
+  
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/q1.png" align="middle" width="600px"/>
+        <figcaption align="middle">Without supersampling, the edges of a triangle as zoomed in have a lot of jaggies.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<br>
+
+<h3 align="middle">Part 2: Antialiasing triangles</h3>
+
+<ul>
+  <li><p>Our supersampling algorithm involves increasing the resolution of the <code>sample_buffer</code> by the square root of the <code>sampling_rate</code>, allowing for detailed within-pixel sampling. When rasterizing a triangle, the algorithm first determines a bounding box to contain the triangle, ensuring vertices are arranged counterclockwise for consistency. It then proceeds to iterate over this area, subdividing each pixel into sub-pixels as per the supersampling rate, and uses the <code>point_in_triangle</code> function to determine if these sub-pixels are within the triangle. Colored positions in the <code>sample_buffer</code> correspond to these sub-pixels.</p>
+  </li>
+  <li><p>To integrate supersampling, we made several modifications to the rasterization pipeline:</p>
+  <ul>
+  <li><code>RasterizerImp::set_sample_rate()</code>: This function was adapted to update the <code>sample_buffer</code> dimensions, multiplying each side by the square root of the sample rate, ensuring the buffer can accommodate the increased sampling density.</li>
+  <li><code>RasterizerImp::rasterize_triangle()</code>: Modified to iterate over subpixels, accounting for the finer granularity provided by supersampling.</li>
+  <li><code>RasterizerImp::fill_pixel()</code>: Adjusted to fill subpixels with consistent color, preparing for the averaging process in downsampling.</li>
+  <li><code>RasterizerImp::resolve_to_framebuffer()</code>: This critical function was reworked to average the colors of each pixel&#39;s subpixels, effectively downsampling the supersampled image to the original resolution while smoothing color transitions.</li>
+  </ul>
+  </li>
+  <li><p>Supersampling is beneficial for its anti-aliasing capabilities. By rendering the scene at a higher resolution and then averaging these results to downsample, it significantly smooths out jagged edges around objects, in this case, triangles. This method provides a cleaner, more continuous visual appearance, enhancing the overall image quality. Through these modifications, our supersampling approach effectively reduces aliasing, offering a superior rendering outcome compared to traditional rasterization methods.</p>
+  </li>
+</ul>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/q2_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">1px supersampling</figcaption>
+      </td>
+      <td>
+        <img src="images/q2_4.png" align="middle" width="400px"/>
+        <figcaption align="middle">4px supersampling</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/q2_9.png" align="middle" width="400px"/>
+        <figcaption align="middle">9px supersampling</figcaption>
+      </td>
+      <td>
+        <img src="images/q2_16.png" align="middle" width="400px"/>
+        <figcaption align="middle">16px supersampling</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+  
+<br>
+
+
+<h3 align="middle">Part 3: Transforms</h3>
+
+<ul>
+  <li>Our updated robot, named Carl, is doing the splits with his arms raised in the air. We also made him neon green because that is a cool color.</li>
+  <li>Getting Carl to do the splits was rather simple; for each leg, we rotated it by 90º. The left leg was rotated 90º CW while the right leg was rotated 90º CCW.</li>
+  <li>We did something similar with the arms, rotating them 90º CW and CCW, respectively.</li>
+  <li>The full 90 degree rotation seemed unnatural, so we actually rotated the limbs by 80º in the proper direction.</li>
+</ul>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/carl.png" align="middle" width="600px"/>
+        <figcaption align="middle">Our dapper little jumping robot, Carl.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+  
+<br>
+
+<br>
+
+
+<h2 align="middle">Section II: Sampling</h2>
+
+<h3 align="middle">Part 4: Barycentric coordinates</h3>
+
+<ul>
+  <li>Barycentric coordinates allow for the specification of any point within a triangle as a weighted mix of the triangle's vertices. This method assigns weights to the vertices, indicating their influence on a point's position and attributes, such as color. In a triangle with vertices colored red, green, and blue, barycentric coordinates enable smooth color blending across the triangle, with the color at any point being a mix of the colors at the vertices based on the point's distance to them. This approach is useful for interpolating values across the surface of a triangle, demonstrating a gradient effect where colors transition smoothly from one vertex to another.</li>
+</ul>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/q4_1.png" align="middle" width="400px"/>
+      </td>
+      <td>
+        <img src="images/q4_custom_triangle.png" align="middle" width="400px"/>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<br>
+
+<h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
+
+<ul>
+  <li><p>Pixel sampling is a technique in texture mapping for how textures are applied to 3D models, involving the selection of texture pixels (texels) to match the surface being textured. The simplest method, nearest neighbor sampling, selects the closest texel to a surface point, offering speed at the expense of potential pixelation. Bilinear sampling averages the colors of the four nearest texels based on their proximity to the point, providing smoother transitions and improved visual quality. The choice between these methods impacts the balance between rendering performance and the smoothness of the texture appearance, with nearest neighbor being faster but more prone to pixelation, and bilinear offering a more visually pleasing result at a slight computational cost.</p>
+  </li>
+  <li><p>To integrate pixel sampling:</p>
+  <ul>
+  <li><code>RasterizerImp::rasterize_textured_triangle</code>: Copied the upsampling method from task 2 and determined whether to use nearest or bilinear based on the given <code>psm</code>.</li>
+  <li><code>Texture::sample_nearest</code>: Implemented the nearest sampling method.</li>
+  <li><code>Texture::sample_bilinear</code>: Implemented the bilinear sampling method.</li>
+  </ul>
+  </li>
+  <li><p>The key difference between nearest neighbor and bilinear sampling lies in their trade-off between speed and smoothness. Nearest neighbor jumps straight to the closest texel, making it super quick but sometimes blocky or pixelated, especially when you&#39;re zooming in on textures or stretching them over large areas. Bilinear sampling takes a bit more time because it looks at the four closest texels and blends them together, smoothing out the edges and making everything look nicer when the texture&#39;s size doesn&#39;t match up perfectly with the surface it&#39;s covering. You&#39;ll really notice the difference when textures are being scaled up a lot. Nearest neighbor can make things look jagged and rough around the edges, while bilinear smooths things out.</p>
+  </li>
+</ul>
+
+<br>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/q5_bilinear_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">bilinear sampling, 1 pixel</figcaption>
+      </td>
+      <td>
+        <img src="images/q5_bilinear_16.png" align="middle" width="400px"/>
+        <figcaption align="middle">bilinear sampling, 16 pixels</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/q5_nearest_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">nearest sampling, 1 pixel</figcaption>
+      </td>
+      <td>
+        <img src="images/q5_nearest_16.png" align="middle" width="400px"/>
+        <figcaption align="middle">nearest sampling, 16 pixels</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<br>
+
+<h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
+
+<ul>
+  <li><p>Level sampling in this context refers to a method used to determine the proper level of detail/resolution of a texture applied to a surface, leading to an uptick in efficiency and visual quality when rendering our images.</p>
+  </li>
+  <li><p>Implementing level sampling involves: <strong>(1)</strong> generating mipmaps for a given texture, <strong>(2)</strong> calculating the appropriate mipmap level based off what configuration we desire, and <strong>(3)</strong> sampling the texture value using the desired method (neighbor sampling, sampling from the 0-th level, or calculating a weighted sum).</p>
+  </li>
+  <li><p><em>Pixel Sampling:</em></p>
+  <ul>
+  <li><code>P_NEAREST</code> is faster and consumes less memory because it always picks the nearest pixel value from the texture. This efficiency, however, comes at a cost, usually an uptick of visual artifacts or aliases, like jaggies or blocky appearances, especially in small or up-close images.   </li>
+  <li><code>P_LINEAR</code> interpolates between neighbor pixels which produces a smoother result at only a slight increase in resource demand. In addition, this method could blur sharp or fine details.</li>
+  </ul>
+  </li>
+  <li><em>Level Sampling:</em><ul>
+  <li><code>L_ZERO</code> is a single, fixed level of detail when we sample textures. It disregards the distance or size of the surface. This method is computationally simpler and faster, but can cause morealiasing, jaggies, or excessive detail in distant textures/elements<ul>
+  <li><code>L_NEAREST</code> selects the nearest level of detail based on the distance or size of the surface, which increases visual quality through a reduction in aliasing and blurring; however, this method is relatively more computationally intense.</li>
+  </ul>
+  </li>
+  </ul>
+  </li>
+  <li><em>Number of Samples per Pixel:</em> This usually looks better as it increases the number of pixels we look at, reducing aliasing and improving image quality. This comes at the obvious cost of increased memory usage and computational toll.</li>
+  </ul>
+  
+  <div align="middle">
+    <table style="width=100%">
+      <tr>
+        <td>
+          <img src="images/levelnearest_linear.png" align="middle" width="400px"/>
+          <figcaption align="middle">L_NEAREST, P_LINEAR</figcaption>
+        </td>
+        <td>
+          <img src="images/levelnearest_nearest.png" align="middle" width="400px"/>
+          <figcaption align="middle">L_NEAREST, P_NEAREST</figcaption>
+        </td>
+      </tr>
+      <br>
+      <tr>
+        <td>
+          <img src="images/levelzero_linear.png" align="middle" width="400px"/>
+          <figcaption align="middle">L_ZERO, P_LINEAR</figcaption>
+        </td>
+        <td>
+          <img src="images/levelzero_nearest.png" align="middle" width="400px"/>
+          <figcaption align="middle">L_ZERO, P_NEAREST</figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <ul>
+    <li>In the example, where we're zoomed into the detailed ring, we see how the different methods render the complex details differently. <code>L_NEAREST, P_LINEAR</code> and <code>L_ZERO, P_LINEAR</code> both overly smoothened the ring, while the near pixel sampling methods did a better job preserving details.</li>
+  </ul>
+
+  <br>
+
+<h2 align="middle">Section III: Art Competition</h2>
+<p>If you are not participating in the optional art competition, don't worry about this section!</p>
+
+<h3 align="middle">Part 7: Draw something interesting!</h3>
+
+</body>
 </html>
+
